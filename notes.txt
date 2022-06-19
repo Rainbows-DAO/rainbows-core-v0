@@ -1,0 +1,2 @@
+yarn hardhat node
+yarn hardhat run scripts/propose.js --network localhost
