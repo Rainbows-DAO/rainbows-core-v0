@@ -9,7 +9,7 @@ import "./Plan.sol";
 import "./GovernanceToken.sol";
 import "./TimeLock.sol";
 import "./GovernorContract.sol";
-import "./CrowdFund.sol";
+import "./Treasury.sol";
 
 contract Loop is Ownable {
 
@@ -21,9 +21,7 @@ contract Loop is Ownable {
     GovernanceToken public token;
     TimeLock lock;
     GovernorContract public governor;
-    CrowdFund public fundraiser;
-
-    IERC20 unit;
+    Treasury public treasury;
 
     uint256 proposePlanId;
 
@@ -48,11 +46,10 @@ contract Loop is Ownable {
     constructor(string memory _title, string memory _description, address _unit) {
         title = _title;
         description = _description;
-        unit = IERC20(_unit);
         members = new Members();
         plan = new Plan();
         token = new GovernanceToken();
-        fundraiser = new CrowdFund(_unit);
+        treasury = new Treasury(_unit);
         _join(msg.sender);
         address[] memory proposers;
         address[] memory executors;
@@ -121,12 +118,12 @@ contract Loop is Ownable {
 
     function closePlan() external onlyOwner {
         plan.close();
-        fundraiser.launch(plan.totalBudget(), uint32(block.timestamp + 1), uint32(block.timestamp + 100));
+        treasury.startFundraising(plan.totalBudget());
         state = FUNDRAISING;
     }
 
     function claimFunds() external {
-        fundraiser.claim(1);
+        treasury.claimFunds();
         state = IMPLEMENTING;
     }
 

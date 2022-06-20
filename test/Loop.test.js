@@ -6,7 +6,7 @@ const moveTime = require("../utils/move-time")
 
 describe("Loop", function () {
 
-  let Unit, unit, Loop, loop, plan, token, governor, fundraiser
+  let Unit, unit, Loop, loop, plan, token, governor, treasury, fundraiser
   let w1, w2, w3
 
   before(async function() {
@@ -20,7 +20,8 @@ describe("Loop", function () {
     plan = await ethers.getContractAt("Plan", await loop.plan())
     token = await ethers.getContractAt("GovernanceToken", await loop.token())
     governor = await ethers.getContractAt("GovernorContract", await loop.governor())
-    fundraiser = await ethers.getContractAt("CrowdFund", await loop.fundraiser())
+    treasury = await ethers.getContractAt("Treasury", await loop.treasury())
+    fundraiser = await ethers.getContractAt("CrowdFund", await treasury.fundraiser())
   })
 
   it("has a title and description", async function () {
@@ -198,32 +199,37 @@ describe("Loop", function () {
 
     }) 
 
-    describe("Fundraising", function() {
+    describe("Treasury", function() {
 
-      before(async function() {
-        await unit.mint(5000)
-        await unit.connect(w2).mint(5000)
-      })
+      describe("Fundraising", function() {
 
-      it("the goal is equal to totalBudget", async() => {
-        let campaign = await fundraiser.campaigns(1)
-        expect(campaign.goal).to.equal(ethers.BigNumber.from(4000))
-      })
-
-      it("accepts pledges", async function() {
-        await unit.approve(fundraiser.address, 1500)
-        await unit.connect(w2).approve(fundraiser.address, 2500)
-        await fundraiser.pledge(1, 1500)
-        await fundraiser.connect(w2).pledge(1, 2500)
-      })
-
-      it("claims the units", async function() {
-        await moveBlocks(110, false)
-        await loop.claimFunds()
-        expect(await unit.balanceOf(loop.address)).to.equal(4000)
-        expect(await loop.state()).to.equal(await loop.IMPLEMENTING())
-        let campaign = await fundraiser.campaigns(1)
-        expect(campaign.claimed).to.be.true
+        before(async function() {
+          await unit.mint(5000)
+          await unit.connect(w2).mint(5000)
+        })
+  
+        it("the goal is equal to totalBudget", async() => {
+          let campaign = await fundraiser.campaigns(1)
+          expect(campaign.goal).to.equal(ethers.BigNumber.from(4000))
+        })
+  
+        it("accepts pledges", async function() {
+          await unit.approve(fundraiser.address, 1500)
+          await unit.connect(w2).approve(fundraiser.address, 2500)
+          await fundraiser.pledge(1, 1500)
+          await fundraiser.connect(w2).pledge(1, 2500)
+        })
+  
+        it("claims the units", async function() {
+          await moveBlocks(110, false)
+          await loop.claimFunds()
+          expect(await unit.balanceOf(treasury.address)).to.equal(4000)
+          expect(await loop.state()).to.equal(await loop.IMPLEMENTING())
+          let campaign = await fundraiser.campaigns(1)
+          expect(campaign.claimed).to.be.true
+        })
+  
+        
       })
 
     })
