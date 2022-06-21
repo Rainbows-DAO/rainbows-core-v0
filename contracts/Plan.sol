@@ -12,9 +12,10 @@ contract Plan is Ownable {
         string title;
         string description;
         uint256 budget;
+        uint256 spent;
     }
 
-    mapping(uint256 => Item) items;
+    mapping(uint256 => Item) public items;
 
     bytes32 constant OPEN = keccak256("OPEN_STATE");
     bytes32 constant CLOSED = keccak256("CLOSED_STATE");
@@ -44,7 +45,7 @@ contract Plan is Ownable {
 
     function addItem(string memory title, string memory description, uint256 budget) external onlyMember { 
         uint256 id = itemHash(title, description, budget);
-        items[id] = Item(true, title, description, budget);
+        items[id] = Item(true, title, description, budget, 0);
         totalBudget += budget;
         emit ItemAdded(id, title, description, budget);
     }
@@ -68,6 +69,12 @@ contract Plan is Ownable {
     function itemHash(string memory title, string memory description,uint256 budget) 
     public pure virtual returns (uint256) {
         return uint256(keccak256(abi.encode(title, description, budget)));
+    }
+
+    function spend(uint256 itemId, uint256 amount) public onlyOwner {
+        Item storage item = items[itemId];
+        require(item.spent + amount <= item.budget, "not enough budget");
+        item.spent += amount;
     }
 
 }

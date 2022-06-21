@@ -12,6 +12,8 @@ contract Treasury is Ownable {
 
     CrowdFund public fundraiser;
 
+    event UnitTransfer(address to, uint256 amount);
+
     constructor(address _unit) {
         unit = IERC20(_unit);
         fundraiser = new CrowdFund(_unit);
@@ -23,6 +25,12 @@ contract Treasury is Ownable {
 
     function claimFunds() public onlyOwner {
         fundraiser.claim(1);
+    }
+
+    function transfer(uint256 amount, address payee) public onlyOwner {
+        require(payee != address(0), "can't transfer to address 0");
+        unit.transfer(payee, amount);
+        emit UnitTransfer(payee, amount);
     }
 
 }

@@ -6,8 +6,20 @@ const moveTime = require("../utils/move-time")
 
 describe("Loop", function () {
 
-  let Unit, unit, Loop, loop, plan, token, governor, treasury, fundraiser
+  let Unit, unit, Loop, loop, plan, token, governor, treasury, fundraiser, actions
   let w1, w2, w3
+
+  const itemOne = {
+    title: "Concert: production plan",
+    description: "Build concert specification, timeline and budget",
+    budget: 1000
+  }
+
+  const itemTwo = {
+    title: "Marketing campaign",
+    description: "Advertise the concert",
+    budget: 4000
+  }
 
   before(async function() {
     [w1, w2, w3] = await ethers.getSigners()
@@ -22,6 +34,7 @@ describe("Loop", function () {
     governor = await ethers.getContractAt("GovernorContract", await loop.governor())
     treasury = await ethers.getContractAt("Treasury", await loop.treasury())
     fundraiser = await ethers.getContractAt("CrowdFund", await treasury.fundraiser())
+    actions = await ethers.getContractAt("Actions", await loop.actions())
   })
 
   it("has a title and description", async function () {
@@ -69,18 +82,6 @@ describe("Loop", function () {
   })
 
   describe("Plan", function() {
-
-    const itemOne = {
-      title: "Concert: production plan",
-      description: "Build concert specification, timeline and budget",
-      budget: 1000
-    }
-
-    const itemTwo = {
-      title: "Marketing campaign",
-      description: "Advertise the concert",
-      budget: 4000
-    }
 
     it("starts OPEN", async function() {
       expect(await plan.isOpen()).to.be.true
@@ -224,12 +225,65 @@ describe("Loop", function () {
           await moveBlocks(110, false)
           await loop.claimFunds()
           expect(await unit.balanceOf(treasury.address)).to.equal(4000)
-          expect(await loop.state()).to.equal(await loop.IMPLEMENTING())
           let campaign = await fundraiser.campaigns(1)
           expect(campaign.claimed).to.be.true
+          expect(await loop.state()).to.equal(await loop.IMPLEMENTING())
         })
   
         
+      })
+
+    })
+
+    describe("Actions", function() {
+
+      describe("when in implementing state", function() {
+
+        let actionOne
+
+        before(async function() {
+          actionOne = { title: "print 10000 flyers", cost: 200, payee: w2.address }
+        })
+
+        it("a member can create an action", async function() {
+          await expect(actions.createAction(itemTwo.id, actionOne.title, actionOne.cost, actionOne.payee))
+              .to.emit(actions, 'ActionCreated')
+              .withArgs(itemTwo.id, actionOne.title, actionOne.cost, actionOne.payee, w1.address)
+          let action = await actions.getAction(itemTwo.id)
+          expect(action.exists).to.be.true
+          expect(action.paid).to.be.false
+          expect(action.executed).to.be.false
+          expect(action.createdBy).to.equal(w1.address)
+        })
+
+        it("another member can validate an action", async function() {
+          await expect(actions.connect(w3).validateAction(itemTwo.id))
+              .to.emit(actions, 'ActionValidated')
+              .withArgs(itemTwo.id, w3.address)
+          let action = await actions.getAction(itemTwo.id)
+          expect(action.validatedBy).to.equal(w3.address)
+        })
+
+        it("any member can execute an action", async function() {
+          await expect(actions.executeAction(itemTwo.id))
+              .to.emit(actions, 'ActionExecuted')
+              .withArgs(itemTwo.id, w1.address)
+          let action = await actions.getAction(itemTwo.id)
+          expect(action.executed).to.be.true
+        })
+
+        it("any member can pay an action, if validated", async function() {
+          await expect(loop.payAction(itemTwo.id))
+              .to.emit(actions, 'ActionPaid')
+              .withArgs(itemTwo.id, w1.address)
+          let action = await actions.getAction(itemTwo.id)
+          expect(action.paid).to.be.true
+          expect(await unit.balanceOf(treasury.address)).to.equal(3800)
+          expect(await unit.balanceOf(w2.address)).to.equal(2700)
+          let item = await plan.items(itemTwo.id)
+          expect(item.spent).to.equal(actionOne.cost)
+        })
+
       })
 
     })

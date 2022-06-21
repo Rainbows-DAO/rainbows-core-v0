@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./Members.sol";
 import "./Plan.sol";
@@ -10,6 +9,7 @@ import "./GovernanceToken.sol";
 import "./TimeLock.sol";
 import "./GovernorContract.sol";
 import "./Treasury.sol";
+import "./Actions.sol";
 
 contract Loop is Ownable {
 
@@ -22,6 +22,7 @@ contract Loop is Ownable {
     TimeLock lock;
     GovernorContract public governor;
     Treasury public treasury;
+    Actions public actions;
 
     uint256 proposePlanId;
 
@@ -50,19 +51,10 @@ contract Loop is Ownable {
         plan = new Plan();
         token = new GovernanceToken();
         treasury = new Treasury(_unit);
+        actions = new Actions();
         _join(msg.sender);
-        address[] memory proposers;
-        address[] memory executors;
-        uint minDelay = 10;
-        lock = new TimeLock(minDelay, proposers, executors);
-        uint votingDelay = 1;
-        uint votingPeriod = 10;
-        uint quorumPercentage = 100;
-        governor = new GovernorContract(token, lock, quorumPercentage, votingPeriod, votingDelay);
-        lock.grantRole(lock.PROPOSER_ROLE(), address(governor));
-        lock.grantRole(lock.EXECUTOR_ROLE(), address(0));
-        lock.grantRole(lock.TIMELOCK_ADMIN_ROLE(), address(governor));
-        lock.revokeRole(lock.TIMELOCK_ADMIN_ROLE(), address(this));
+        setupTimeLock();
+        setupGovernor();
         state = PLANNING;
         transferOwnership(address(lock));
     }
@@ -85,6 +77,14 @@ contract Loop is Ownable {
 
     function isMember(address account) external view returns (bool) {
         return members.isMember(account);
+    }
+
+    function itemExists(uint256 itemId) external view returns (bool) {
+        return plan.hasItem(itemId);
+    }
+
+    function isImplementing() external view returns (bool) {
+        return state == IMPLEMENTING;
     }
 
     function proposePlanData() private view returns (address[] memory, uint256[] memory, bytes[] memory)  {
@@ -125,6 +125,33 @@ contract Loop is Ownable {
     function claimFunds() external {
         treasury.claimFunds();
         state = IMPLEMENTING;
+    }
+
+    function payAction(uint256 itemId) external onlyMember {
+        Actions.Action memory action = actions.getAction(itemId);
+        plan.spend(itemId, action.cost);
+        actions.payAction(itemId, msg.sender);
+        treasury.transfer(action.cost, action.payee);
+    }
+
+    // PRIVATE
+
+    function setupTimeLock() private {
+        address[] memory proposers;
+        address[] memory executors;
+        uint minDelay = 10;
+        lock = new TimeLock(minDelay, proposers, executors);
+    }
+
+    function setupGovernor() private {
+        uint votingDelay = 1;
+        uint votingPeriod = 10;
+        uint quorumPercentage = 100;
+        governor = new GovernorContract(token, lock, quorumPercentage, votingPeriod, votingDelay);
+        lock.grantRole(lock.PROPOSER_ROLE(), address(governor));
+        lock.grantRole(lock.EXECUTOR_ROLE(), address(0));
+        lock.grantRole(lock.TIMELOCK_ADMIN_ROLE(), address(governor));
+        lock.revokeRole(lock.TIMELOCK_ADMIN_ROLE(), address(this));
     }
 
 }
