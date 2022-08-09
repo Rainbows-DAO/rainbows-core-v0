@@ -6,8 +6,8 @@ const moveTime = require("../utils/move-time")
 
 describe("Loop", function () {
 
-  let Unit, unit, Loop, loop, plan, token, governor, treasury, fundraiser, actions
-  let w1, w2, w3
+  let Unit, unit, Loop, loop, plan, token, governor, treasury, fundraiser, actions, Rainbows, rainbows
+  let w1, w2, w3, w4, w5
 
   const itemOne = {
     title: "Concert: production plan",
@@ -22,12 +22,14 @@ describe("Loop", function () {
   }
 
   before(async function() {
-    [w1, w2, w3] = await ethers.getSigners()
+    [w1, w2, w3, w4, w5] = await ethers.getSigners()
+    Rainbows = await ethers.getContractFactory("Rainbows")
+    rainbows = await Rainbows.deploy()
     Unit = await ethers.getContractFactory("UnitToken")
     unit = await Unit.deploy()
     await unit.deployed()
     Loop = await ethers.getContractFactory("Loop")
-    loop = await Loop.deploy("Rainbows Live", "A global metaverse event to change the world", unit.address)
+    loop = await Loop.deploy("Rainbows Live", "A global metaverse event to change the world", unit.address, rainbows.address)
     await loop.deployed()
     plan = await ethers.getContractAt("Plan", await loop.plan())
     token = await ethers.getContractAt("GovernanceToken", await loop.token())
@@ -239,49 +241,113 @@ describe("Loop", function () {
 
       describe("when in implementing state", function() {
 
-        let actionOne
+        let actionOne, actionTwo
 
         before(async function() {
-          actionOne = { title: "print 10000 flyers", cost: 200, payee: w2.address }
+          actionOne = { id: 1, title: "print 10000 flyers", cost: 200, payee: w2.address }
+          actionTwo = { id: 2, title: "promote event on facebook", cost: 400, payee: w4.address }
+          actionThree = { id: 3, title: "hire Donald Trump for speaker", cost: 1000000, payee: w5.address }
         })
 
-        it("a member can create an action", async function() {
-          await expect(actions.createAction(itemTwo.id, actionOne.title, actionOne.cost, actionOne.payee))
-              .to.emit(actions, 'ActionCreated')
-              .withArgs(itemTwo.id, actionOne.title, actionOne.cost, actionOne.payee, w1.address)
-          let action = await actions.getAction(itemTwo.id)
-          expect(action.exists).to.be.true
-          expect(action.paid).to.be.false
-          expect(action.executed).to.be.false
-          expect(action.createdBy).to.equal(w1.address)
+        describe("actionOne", function() {
+          it("a member can create an action", async function() {
+            await expect(actions.createAction(itemTwo.id, actionOne.title, actionOne.cost, actionOne.payee))
+                .to.emit(actions, 'ActionCreated')
+                .withArgs(itemTwo.id, actionOne.id, actionOne.title, actionOne.cost, actionOne.payee, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionOne.id)
+            expect(action.exists).to.be.true
+            expect(action.paid).to.be.false
+            expect(action.executed).to.be.false
+            expect(action.createdBy).to.equal(w1.address)
+          })
+  
+          it("another member can validate an action", async function() {
+            await expect(actions.connect(w3).validateAction(itemTwo.id, actionOne.id))
+                .to.emit(actions, 'ActionValidated')
+                .withArgs(itemTwo.id, w3.address)
+            let action = await actions.getAction(itemTwo.id, actionOne.id)
+            expect(action.validatedBy).to.equal(w3.address)
+          })
+  
+          it("any member can execute an action", async function() {
+            await expect(actions.executeAction(itemTwo.id, actionOne.id))
+                .to.emit(actions, 'ActionExecuted')
+                .withArgs(itemTwo.id, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionOne.id)
+            expect(action.executed).to.be.true
+          })
+  
+          it("any member can pay an action, if validated", async function() {
+            await expect(loop.payAction(itemTwo.id, actionOne.id))
+                .to.emit(actions, 'ActionPaid')
+                .withArgs(itemTwo.id, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionOne.id)
+            expect(action.paid).to.be.true
+            expect(await unit.balanceOf(treasury.address)).to.equal(3800)
+            expect(await unit.balanceOf(w2.address)).to.equal(2700)
+            let item = await plan.items(itemTwo.id)
+            expect(item.spent).to.equal(actionOne.cost)
+          })
         })
 
-        it("another member can validate an action", async function() {
-          await expect(actions.connect(w3).validateAction(itemTwo.id))
-              .to.emit(actions, 'ActionValidated')
-              .withArgs(itemTwo.id, w3.address)
-          let action = await actions.getAction(itemTwo.id)
-          expect(action.validatedBy).to.equal(w3.address)
+        describe("actionTwo", function() {
+          it("a member can create an action", async function() {
+            await expect(actions.createAction(itemTwo.id, actionTwo.title, actionTwo.cost, actionTwo.payee))
+                .to.emit(actions, 'ActionCreated')
+                .withArgs(itemTwo.id, actionTwo.id, actionTwo.title, actionTwo.cost, actionTwo.payee, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionTwo.id)
+            expect(action.exists).to.be.true
+            expect(action.paid).to.be.false
+            expect(action.executed).to.be.false
+            expect(action.createdBy).to.equal(w1.address)
+          })
+  
+          it("another member can validate an action", async function() {
+            await expect(actions.connect(w3).validateAction(itemTwo.id, actionTwo.id))
+                .to.emit(actions, 'ActionValidated')
+                .withArgs(itemTwo.id, w3.address)
+            let action = await actions.getAction(itemTwo.id, actionTwo.id)
+            expect(action.validatedBy).to.equal(w3.address)
+          })
+  
+          it("any member can execute an action", async function() {
+            await expect(actions.executeAction(itemTwo.id, actionTwo.id))
+                .to.emit(actions, 'ActionExecuted')
+                .withArgs(itemTwo.id, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionTwo.id)
+            expect(action.executed).to.be.true
+          })
+  
+          it("any member can pay an action, if validated", async function() {
+            await expect(loop.payAction(itemTwo.id, actionTwo.id))
+                .to.emit(actions, 'ActionPaid')
+                .withArgs(itemTwo.id, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionTwo.id)
+            expect(action.paid).to.be.true
+            expect(await unit.balanceOf(treasury.address)).to.equal(3400)
+            expect(await unit.balanceOf(w4.address)).to.equal(400)
+            let item = await plan.items(itemTwo.id)
+            expect(item.spent).to.equal(actionTwo.cost + actionOne.cost)
+          })
         })
 
-        it("any member can execute an action", async function() {
-          await expect(actions.executeAction(itemTwo.id))
-              .to.emit(actions, 'ActionExecuted')
-              .withArgs(itemTwo.id, w1.address)
-          let action = await actions.getAction(itemTwo.id)
-          expect(action.executed).to.be.true
-        })
-
-        it("any member can pay an action, if validated", async function() {
-          await expect(loop.payAction(itemTwo.id))
-              .to.emit(actions, 'ActionPaid')
-              .withArgs(itemTwo.id, w1.address)
-          let action = await actions.getAction(itemTwo.id)
-          expect(action.paid).to.be.true
-          expect(await unit.balanceOf(treasury.address)).to.equal(3800)
-          expect(await unit.balanceOf(w2.address)).to.equal(2700)
-          let item = await plan.items(itemTwo.id)
-          expect(item.spent).to.equal(actionOne.cost)
+        describe("actionThree", function() {
+          it("a member can create an action", async function() {
+            await expect(actions.createAction(itemTwo.id, actionThree.title, actionThree.cost, actionThree.payee))
+                .to.emit(actions, 'ActionCreated')
+                .withArgs(itemTwo.id, actionThree.id, actionThree.title, actionThree.cost, actionThree.payee, w1.address)
+            let action = await actions.getAction(itemTwo.id, actionThree.id)
+            expect(action.exists).to.be.true
+            expect(action.paid).to.be.false
+            expect(action.executed).to.be.false
+            expect(action.createdBy).to.equal(w1.address)
+          })
+  
+          it("validate fails if over budget", async function() {
+            await expect(actions.connect(w3).validateAction(itemTwo.id, actionThree.id))
+                .to.be.revertedWith("cost over budget")
+          })
+  
         })
 
       })

@@ -17,6 +17,8 @@ contract Plan is Ownable {
 
     mapping(uint256 => Item) public items;
 
+    uint256 public count = 0;
+
     bytes32 constant OPEN = keccak256("OPEN_STATE");
     bytes32 constant CLOSED = keccak256("CLOSED_STATE");
 
@@ -47,6 +49,7 @@ contract Plan is Ownable {
         uint256 id = itemHash(title, description, budget);
         items[id] = Item(true, title, description, budget, 0);
         totalBudget += budget;
+        count += 1;
         emit ItemAdded(id, title, description, budget);
     }
 
@@ -55,6 +58,7 @@ contract Plan is Ownable {
         require(item.exists, "item not found");
         totalBudget -= item.budget;
         delete items[id];
+        count -= 1;
         emit ItemRemoved(id);
     }
 
@@ -75,6 +79,11 @@ contract Plan is Ownable {
         Item storage item = items[itemId];
         require(item.spent + amount <= item.budget, "not enough budget");
         item.spent += amount;
+    }
+
+    function costIsWithinBudget(uint256 itemId, uint256 cost) external view returns (bool) {
+        Item memory item = items[itemId];
+        return (item.budget - item.spent) >= cost;
     }
 
 }

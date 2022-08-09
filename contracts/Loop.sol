@@ -10,6 +10,7 @@ import "./TimeLock.sol";
 import "./GovernorContract.sol";
 import "./Treasury.sol";
 import "./Actions.sol";
+import "./Rainbows.sol";
 
 contract Loop is Ownable {
 
@@ -32,6 +33,15 @@ contract Loop is Ownable {
 
     bytes32 public state;
 
+    struct SummaryData {
+        string title;
+        string description;
+        string state;
+        uint256 memberCount;
+        uint256 itemCount; 
+        uint256 balance;
+    }
+
     event MemberAdded(address account);
     event MemberRemoved(address account);
     
@@ -44,7 +54,7 @@ contract Loop is Ownable {
         _;
     }
 
-    constructor(string memory _title, string memory _description, address _unit) {
+    constructor(string memory _title, string memory _description, address _unit, address _rainbows) {
         title = _title;
         description = _description;
         members = new Members();
@@ -57,6 +67,18 @@ contract Loop is Ownable {
         setupGovernor();
         state = PLANNING;
         transferOwnership(address(lock));
+        Rainbows(_rainbows).loopCreated(title, description, address(this), msg.sender);
+    }
+
+    function getData() external view returns (SummaryData memory) {
+        return SummaryData(
+            title,
+            description,
+            getState(),
+            members.count(),
+            plan.count(),
+            treasury.balance()
+        );
     }
 
     function _join(address account) private {
@@ -127,11 +149,30 @@ contract Loop is Ownable {
         state = IMPLEMENTING;
     }
 
-    function payAction(uint256 itemId) external onlyMember {
-        Actions.Action memory action = actions.getAction(itemId);
+    function payAction(uint256 itemId, uint id) external onlyMember {
+        Actions.Action memory action = actions.getAction(itemId, id);
         plan.spend(itemId, action.cost);
-        actions.payAction(itemId, msg.sender);
+        actions.payAction(itemId, id, msg.sender);
         treasury.transfer(action.cost, action.payee);
+    }
+
+    function withinBudget(uint256 itemId, uint256 cost) external view returns (bool) {
+        return plan.costIsWithinBudget(itemId, cost);
+    }
+
+    function getState() private view returns (string memory st) {
+        if (state == PLANNING) {
+            st = "Planning";
+        } else
+        if (state == FUNDRAISING) {
+            st = "Fundraising";
+        } else 
+        if (state == IMPLEMENTING) {
+            st = "Implementing";
+        } else 
+        {
+            revert("weird state");
+        }
     }
 
     // PRIVATE

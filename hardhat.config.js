@@ -11,8 +11,8 @@ require("dotenv").config()
 module.exports = {
     defaultNetwork: "hardhat",
     networks: {
-        hardhat: { chainId: 31337 },
-        localhost: { chainId: 31337 },
+        hardhat: { chainId: 1337 },
+        localhost: { chainId: 1337 },
         // polygon: {
         //     url: POLYGON_MAINNET_RPC_URL,
         //     accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],

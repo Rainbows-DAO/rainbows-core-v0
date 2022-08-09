@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Members is Ownable {
 
+    uint256 public count = 0;
+
     struct Membership {
         bool exists;
     }
@@ -13,10 +15,13 @@ contract Members is Ownable {
 
     function add(address member) public onlyOwner {
         require(member != address(0), "member cannot be the zero address");
+        count += 1;
         memberships[member] = Membership(true);
     }
 
     function remove(address member) public onlyOwner {
+        require(isMember(member), "must be a member to remove");
+        count -= 1;
         delete memberships[member];
     }
 

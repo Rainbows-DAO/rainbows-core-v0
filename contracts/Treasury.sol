@@ -33,4 +33,8 @@ contract Treasury is Ownable {
         emit UnitTransfer(payee, amount);
     }
 
+    function balance() public view returns (uint256) {
+        return unit.balanceOf(address(this));
+    }
+
 }
