@@ -40,6 +40,13 @@ contract Loop is Ownable {
         uint256 memberCount;
         uint256 itemCount; 
         uint256 balance;
+	address plan;
+	address token;
+	address lock;
+	address governor;
+	address treasury;
+	address fundraiser;
+	address actions;
     }
 
     event MemberAdded(address account);
@@ -77,7 +84,14 @@ contract Loop is Ownable {
             getState(),
             members.count(),
             plan.count(),
-            treasury.balance()
+            treasury.balance(),
+	    address(plan),
+	    address(token),
+	    address(lock),
+	    address(governor),
+	    address(treasury),
+	    address(treasury.fundraiser()),
+	    address(actions)
         );
     }
 

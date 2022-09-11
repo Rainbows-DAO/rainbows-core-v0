@@ -47,3 +47,6 @@ front-end-typescript/node_modules
 front-end-typescript/nft-marketplace-graph/node_modules
 front-end/nft-marketplace-graph/node_modules
 deployments
+
+*.swp
+*.DS_Store
