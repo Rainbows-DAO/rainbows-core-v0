@@ -49,4 +49,5 @@ front-end/nft-marketplace-graph/node_modules
 deployments
 
 *.swp
+*.swo
 *.DS_Store

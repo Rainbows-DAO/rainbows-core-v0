@@ -239,15 +239,15 @@ describe("Loop", function () {
 
 				it("accepts pledges", async function () {
 					await unit.approve(fundraiser.address, 1500);
-					await unit.connect(w2).approve(fundraiser.address, 2500);
+					await unit.connect(w2).approve(fundraiser.address, 3500);
 					await fundraiser.pledge(1, 1500);
-					await fundraiser.connect(w2).pledge(1, 500);
+					await fundraiser.connect(w2).pledge(1, 3500);
 				});
 
 				it("claims the units", async function () {
 					await moveBlocks(110, false);
 					await loop.claimFunds();
-					expect(await unit.balanceOf(treasury.address)).to.equal(4000);
+					expect(await unit.balanceOf(treasury.address)).to.equal(5000);
 					let campaign = await fundraiser.campaigns(1);
 					expect(campaign.claimed).to.be.true;
 					expect(await loop.state()).to.equal(await loop.IMPLEMENTING());
@@ -330,8 +330,8 @@ describe("Loop", function () {
 							.withArgs(itemTwo.id, w1.address);
 						let action = await actions.getAction(itemTwo.id, actionOne.id);
 						expect(action.paid).to.be.true;
-						expect(await unit.balanceOf(treasury.address)).to.equal(3800);
-						expect(await unit.balanceOf(w2.address)).to.equal(2700);
+						expect(await unit.balanceOf(treasury.address)).to.equal(4800);
+						expect(await unit.balanceOf(w2.address)).to.equal(1700);
 						let item = await plan.items(itemTwo.id);
 						expect(item.spent).to.equal(actionOne.cost);
 					});
@@ -387,7 +387,7 @@ describe("Loop", function () {
 							.withArgs(itemTwo.id, w1.address);
 						let action = await actions.getAction(itemTwo.id, actionTwo.id);
 						expect(action.paid).to.be.true;
-						expect(await unit.balanceOf(treasury.address)).to.equal(3400);
+						expect(await unit.balanceOf(treasury.address)).to.equal(4400);
 						expect(await unit.balanceOf(w4.address)).to.equal(400);
 						let item = await plan.items(itemTwo.id);
 						expect(item.spent).to.equal(actionTwo.cost + actionOne.cost);
